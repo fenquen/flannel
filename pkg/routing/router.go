@@ -42,5 +42,7 @@ type Route struct {
 }
 
 func (r *Route) Equal(other Route) bool {
-	return r.DestinationSubnet.IP.Equal(other.DestinationSubnet.IP) && bytes.Equal(r.DestinationSubnet.Mask, other.DestinationSubnet.Mask) && r.GatewayAddress.Equal(other.GatewayAddress)
+	return r.DestinationSubnet.IP.Equal(other.DestinationSubnet.IP) &&
+		bytes.Equal(r.DestinationSubnet.Mask, other.DestinationSubnet.Mask) &&
+		r.GatewayAddress.Equal(other.GatewayAddress)
 }

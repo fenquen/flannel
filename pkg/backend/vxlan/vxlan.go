@@ -93,6 +93,7 @@ func newSubnetAttrs(publicIP net.IP, publicIPv6 net.IP, vnid uint16, dev, v6Dev 
 	leaseAttrs := &lease.LeaseAttrs{
 		BackendType: "vxlan",
 	}
+
 	if publicIP != nil && dev != nil {
 		data, err := json.Marshal(&vxlanLeaseAttrs{
 			VNI:     vnid,

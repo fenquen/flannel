@@ -20,10 +20,10 @@ import (
 	"net"
 )
 
-// NewHardwareAddr generates a new random hardware (MAC) address, local and
-// unicast.
+// NewHardwareAddr generates a new random hardware (MAC) address, local and unicast.
 func NewHardwareAddr() (net.HardwareAddr, error) {
 	hardwareAddr := make(net.HardwareAddr, 6)
+
 	if _, err := rand.Read(hardwareAddr); err != nil {
 		return nil, fmt.Errorf("could not generate random MAC address: %w", err)
 	}

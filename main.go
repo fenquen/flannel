@@ -36,7 +36,6 @@ import (
 	"github.com/flannel-io/flannel/pkg/subnet"
 	etcd "github.com/flannel-io/flannel/pkg/subnet/etcd"
 	"github.com/flannel-io/flannel/pkg/subnet/kube"
-	"github.com/flannel-io/flannel/pkg/version"
 	"golang.org/x/net/context"
 	log "k8s.io/klog/v2"
 
@@ -197,7 +196,7 @@ func newSubnetManager(ctx context.Context) (subnet.Manager, error) {
 
 func main() {
 	if opts.version {
-		fmt.Fprintln(os.Stderr, version.Version)
+		_, _ = fmt.Fprintln(os.Stderr, "dev")
 		os.Exit(0)
 	}
 
@@ -222,12 +221,12 @@ func main() {
 	// blocking and returning only when cancel() is called.
 	ctx, cancel := context.WithCancel(context.Background())
 
-	sm, err := newSubnetManager(ctx)
+	subnetManager, err := newSubnetManager(ctx)
 	if err != nil {
 		log.Error("Failed to create SubnetManager: ", err)
 		os.Exit(1)
 	}
-	log.Infof("Created subnet manager: %s", sm.Name())
+	log.Infof("Created subnet manager: %s", subnetManager.Name())
 
 	// Register for SIGINT and SIGTERM
 	log.Info("Installing signal handlers")
@@ -247,7 +246,7 @@ func main() {
 	}
 
 	// Fetch the network config (i.e. what backend to use etc..).
-	config, err := getConfig(ctx, sm)
+	config, err := getConfig(ctx, subnetManager)
 	if err == errCanceled {
 		wg.Wait()
 		os.Exit(0)
@@ -266,6 +265,7 @@ func main() {
 		PublicIP:   opts.publicIP,
 		PublicIPv6: opts.publicIPv6,
 	}
+
 	// Check the default interface only if no interfaces are specified
 	if len(opts.iface) == 0 && len(opts.ifaceRegex) == 0 && len(opts.ifaceCanReach) == 0 {
 		if len(opts.publicIP) > 0 {
@@ -319,7 +319,7 @@ func main() {
 	}
 
 	// Create a backend manager then use it to create the backend and register the network with it.
-	bm := backend.NewManager(ctx, sm, extIface)
+	bm := backend.NewManager(ctx, subnetManager, extIface)
 	be, err := bm.GetBackend(config.BackendType)
 	if err != nil {
 		log.Errorf("Error fetching backend: %s", err)
@@ -346,14 +346,18 @@ func main() {
 				wg.Wait()
 				os.Exit(1)
 			}
+
 			if err = recycleIPTables(net, bn.Lease()); err != nil {
 				log.Errorf("Failed to recycle IPTables rules, %v", err)
 				cancel()
 				wg.Wait()
 				os.Exit(1)
 			}
+
 			log.Infof("Setting up masking rules")
+
 			iptables.CreateIP4Chain("nat", "FLANNEL-POSTRTG")
+
 			getRules := func() []iptables.IPTablesRule {
 				if config.HasNetworks() {
 					return iptables.MasqRules(config.Networks, bn.Lease())
@@ -361,9 +365,11 @@ func main() {
 					return iptables.MasqRules([]ip.IP4Net{config.Network}, bn.Lease())
 				}
 			}
+
 			go iptables.SetupAndEnsureIP4Tables(getRules, opts.iptablesResyncSeconds)
 
 		}
+
 		if config.EnableIPv6 {
 			ip6net, err := config.GetFlannelIPv6Network(&bn.Lease().IPv6Subnet)
 			if err != nil {
@@ -410,6 +416,7 @@ func main() {
 			}
 			go iptables.SetupAndEnsureIP4Tables(getRules, opts.iptablesResyncSeconds)
 		}
+
 		if config.EnableIPv6 {
 			ip6net, err := config.GetFlannelIPv6Network(&bn.Lease().IPv6Subnet)
 			if err != nil {
@@ -427,7 +434,7 @@ func main() {
 		}
 	}
 
-	if err := sm.HandleSubnetFile(opts.subnetFile, config, opts.ipMasq, bn.Lease().Subnet, bn.Lease().IPv6Subnet, bn.MTU()); err != nil {
+	if err := subnetManager.HandleSubnetFile(opts.subnetFile, config, opts.ipMasq, bn.Lease().Subnet, bn.Lease().IPv6Subnet, bn.MTU()); err != nil {
 		// Continue, even though it failed.
 		log.Warningf("Failed to write subnet file: %s", err)
 	} else {
@@ -447,7 +454,7 @@ func main() {
 		log.Errorf("Failed to notify systemd the message READY=1 %v", err)
 	}
 
-	err = sm.CompleteLease(ctx, bn.Lease(), &wg)
+	err = subnetManager.CompleteLease(ctx, bn.Lease(), &wg)
 	if err != nil {
 		log.Errorf("CompleteLease execute error err: %v", err)
 		if strings.EqualFold(err.Error(), errInterrupted.Error()) {

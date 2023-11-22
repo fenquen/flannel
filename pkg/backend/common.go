@@ -33,8 +33,7 @@ type ExternalInterface struct {
 
 // Besides the entry points in the Backend interface, the backend's New()
 // function receives static network interface information (like internal and
-// external IP addresses, MTU, etc) which it should cache for later use if
-// needed.
+// external IP addresses, MTU, etc) which it should cache for later use if  needed
 type Backend interface {
 	// Called when the backend should create or begin managing a new network
 	RegisterNetwork(ctx context.Context, wg *sync.WaitGroup, config *subnet.Config) (Network, error)

@@ -162,6 +162,7 @@ func CreateIP4Chain(table, chain string) {
 		log.Errorf("Failed to setup IPTables. iptables binary was not found: %v", err)
 		return
 	}
+
 	err = ipt.ClearChain(table, chain)
 	if err != nil {
 		// if we can't find iptables, give up and return
